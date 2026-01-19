@@ -5,46 +5,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>An Chay - Thực Đơn Chay Hiện Đại</title>
-    
-    <!-- Scripts: React, Tailwind, FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Babel để chạy React/JSX trực tiếp trong HTML -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@19.0.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
-  }
-}
-</script>
-
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; scroll-behavior: smooth; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .animate-slide-in-right { animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     </style>
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^18.2.0",
+    "react-dom": "https://esm.sh/react-dom@^18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@^18.2.0/client",
+    "@google/genai": "https://esm.sh/@google/genai@^1.37.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
+  }
+}
+</script>
 </head>
 <body class="bg-gray-50 text-gray-900">
     <div id="root"></div>
 
-    <script type="text/babel" data-type="module">
+    <script type="module">
         import React, { useState, useEffect, useMemo } from 'react';
         import ReactDOM from 'react-dom/client';
+        import { GoogleGenAI } from '@google/genai';
 
         // --- CONSTANTS & TYPES ---
-        const Category = { MAIN: 'Món Chính', SIDE: 'Món Phụ', DRINK: 'Đồ Uống', DESSERT: 'Tráng Miệng' };
-        const OrderStatus = { PENDING: 'Chờ xác nhận', SHIPPING: 'Đang giao hàng', COMPLETED: 'Hoàn thành', CANCELLED: 'Hủy' };
+        const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwpjfCkqN2q4VlnOMnXGoAjiRXIX0o4Tmhh-YRSSfAzBkVZuRaxDBGfSjH3mkKZMdw0/exec";
+        
+        const Category = { ALL: 'Tất cả', MAIN: 'Món Chính', SIDE: 'Món Phụ', DRINK: 'Đồ Uống', DESSERT: 'Tráng Miệng' };
         
         const LOCATIONS = [
             { province: 'Tp. Hồ Chí Minh', wards: ['Xã Hóc Môn', 'Xã Tân Xuân', 'Xã Thới Tam Thôn', 'Quận 1', 'Quận 3', 'Quận 7', 'Quận 10'] },
@@ -56,236 +53,226 @@
             { id: '1', name: 'Phở Chay Hà Nội', price: 55000, category: Category.MAIN, description: 'Nước dùng ngọt thanh từ rau củ, nấm và hồi quế thơm lừng.', image: 'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?q=80&w=800', isAvailable: true },
             { id: '2', name: 'Bún Chả Giò Chay', price: 45000, category: Category.MAIN, description: 'Bún tươi kèm chả giò giòn rụm, rau sống và nước mắm chua ngọt.', image: 'https://images.unsplash.com/photo-1503764654157-72d979d9af73?q=80&w=800', isAvailable: true },
             { id: '3', name: 'Gỏi Cuốn Ngũ Sắc', price: 35000, category: Category.SIDE, description: 'Gỏi cuốn thanh mát với đậu hũ, bún, rau thơm và nước xốt tương đậu.', image: 'https://images.unsplash.com/photo-1534422298391-e4f8c170db06?q=80&w=800', isAvailable: true },
-            { id: '4', name: 'Trà Sen Vàng', price: 25000, category: Category.DRINK, description: 'Trà sen thơm dịu, thanh lọc cơ thể.', image: 'https://images.unsplash.com/photo-1544787210-2211d7c9ad82?q=80&w=800', isAvailable: true }
+            { id: '4', name: 'Trà Sen Vàng', price: 25000, category: Category.DRINK, description: 'Trà sen thơm dịu, thanh lọc cơ thể.', image: 'https://images.unsplash.com/photo-1544787210-2211d7c9ad82?q=80&w=800', isAvailable: true },
+            { id: '5', name: 'Lẩu Nấm Thập Cẩm', price: 185000, category: Category.MAIN, description: 'Đa dạng các loại nấm tươi ngon cùng rau củ theo mùa.', image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?q=80&w=800', isAvailable: true },
+            { id: '6', name: 'Đậu Hũ Tứ Xuyên', price: 65000, category: Category.MAIN, description: 'Đậu hũ non mềm mịn sốt cay nồng nàn chuẩn vị Tứ Xuyên.', image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=800', isAvailable: true },
+            { id: '7', name: 'Chè Hạt Sen', price: 30000, category: Category.DESSERT, description: 'Vị ngọt thanh từ đường phèn và độ bùi của hạt sen tươi.', image: 'https://images.unsplash.com/photo-1516684732162-798a0062be99?q=80&w=800', isAvailable: true }
         ];
 
-        const DEFAULT_SETTINGS = { isOpen: true, isAutoSchedule: false, openTime: '08:00', closeTime: '21:00', closedIntervals: [], shopName: 'An Chay Restaurant', contactPhone: '0901234567' };
-
-        // --- GOOGLE SHEET API URL ---
-        const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwpjfCkqN2q4VlnOMnXGoAjiRXIX0o4Tmhh-YRSSfAzBkVZuRaxDBGfSjH3mkKZMdw0/exec";
-
         // --- COMPONENTS ---
-        
-        const Header = ({ isAdmin, toggleAdmin, cartCount, onOpenCart, settings }) => (
-            <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b">
-                <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center text-white">
-                            <i className="fa-solid fa-leaf text-xl"></i>
-                        </div>
-                        <div>
-                            <h1 className="font-bold text-lg leading-tight">{settings.shopName}</h1>
-                            <div className="flex items-center gap-1.5 text-xs">
-                                <span className={`w-2 h-2 rounded-full ${settings.isOpen ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                <span className={settings.isOpen ? 'text-green-600' : 'text-red-600 font-medium'}>
-                                    {settings.isOpen ? 'Mở cửa' : 'Đóng cửa'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <button onClick={toggleAdmin} className={`p-2 rounded-lg transition-colors ${isAdmin ? 'bg-gray-100 text-green-700' : 'text-gray-500 hover:bg-gray-50'}`}>
-                            <i className={`fa-solid ${isAdmin ? 'fa-house' : 'fa-gear'} text-lg`}></i>
-                        </button>
-                        {!isAdmin && (
-                            <button onClick={onOpenCart} className="relative p-2 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors">
-                                <i className="fa-solid fa-cart-shopping text-lg"></i>
-                                {cartCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">{cartCount}</span>}
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </header>
-        );
-
-        const MenuList = ({ items, onAddToCart, cart, updateQuantity }) => {
-            if (items.length === 0) return <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100"><p className="text-gray-400 font-medium">Không tìm thấy món ăn nào.</p></div>;
-            return (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
-                    {items.map(item => {
-                        const cartItem = cart.find(i => i.id === item.id);
-                        return (
-                            <div key={item.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col hover:shadow-lg transition-all">
-                                <div className="aspect-[4/3] overflow-hidden"><img src={item.image} className="w-full h-full object-cover" /></div>
-                                <div className="p-3 flex-grow flex flex-col">
-                                    <h3 className="text-sm font-bold text-gray-800 line-clamp-1 mb-1">{item.name}</h3>
-                                    <p className="text-gray-400 text-[10px] line-clamp-2 mb-3 leading-relaxed flex-grow">{item.description}</p>
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-green-600 font-bold text-sm">{item.price.toLocaleString()}₫</p>
-                                        {!item.isAvailable ? <span className="px-2 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold">Hết hàng</span> : 
-                                            cartItem ? (
-                                                <div className="flex items-center gap-1.5 bg-gray-50 rounded-xl p-0.5 border">
-                                                    <button onClick={() => updateQuantity(item.id, -1)} className="w-6 h-6 flex items-center justify-center text-green-600">-</button>
-                                                    <span className="text-xs font-bold text-green-700">{cartItem.quantity}</span>
-                                                    <button onClick={() => updateQuantity(item.id, 1)} className="w-6 h-6 flex items-center justify-center text-green-600">+</button>
-                                                </div>
-                                            ) : (
-                                                <button onClick={() => onAddToCart(item)} className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center"><i className="fa-solid fa-plus text-xs"></i></button>
-                                            )
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            );
-        };
-
-        const SuccessModal = ({ order, onClose }) => {
-            if (!order) return null;
-            return (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
-                    <div className="relative bg-white w-full max-w-2xl rounded-3xl p-6 animate-fade-in shadow-2xl">
-                        <div className="text-center mb-5">
-                            <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3"><i className="fa-solid fa-check text-2xl"></i></div>
-                            <h2 className="text-lg font-bold">Quý khách đã đặt hàng thành công!</h2>
-                            <p className="text-[10px] text-gray-400 font-bold">Mã đơn: {order.id}</p>
-                        </div>
-                        <div className="bg-gray-50 rounded-2xl p-4 text-xs space-y-2 mb-5">
-                            <p className="flex justify-between"><span>Khách hàng:</span> <b>{order.customerName}</b></p>
-                            <p className="flex justify-between"><span>Điện thoại:</span> <b>{order.phone}</b></p>
-                            <p className="border-t pt-2 mt-2"><b>Địa chỉ:</b> {order.fullAddress}</p>
-                            <div className="border-t pt-2">
-                                {order.items.map(i => <div key={i.id} className="flex justify-between"><span>{i.name} x{i.quantity}</span><span>{(i.price * i.quantity).toLocaleString()}₫</span></div>)}
-                            </div>
-                            <p className="border-t pt-2 flex justify-between text-base text-green-600 font-bold"><span>Tổng:</span> <span>{order.total.toLocaleString()}₫</span></p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <button onClick={onClose} className="py-3 bg-gray-100 rounded-xl font-bold text-xs uppercase">Xem món tiếp</button>
-                            <a href={`https://zalo.me/${order.phone}`} target="_blank" className="py-3 bg-green-600 text-white rounded-xl font-bold text-xs text-center uppercase">Xác nhận Zalo</a>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const FloatingInput = ({ label, value, onChange, onBlur, type = "text", required = false }) => (
+        const FloatingInput = ({ label, value, onChange, type = "text" }) => (
             <div className="relative mb-3">
-                <input type={type} required={required} value={value} onChange={onChange} onBlur={onBlur} className="block w-full px-3 py-2 text-sm font-semibold text-gray-900 bg-white rounded-xl border border-gray-200 focus:border-green-600 outline-none peer" placeholder=" " />
+                <input type={type} value={value} onChange={onChange} className="block w-full px-3 py-2.5 text-sm font-semibold text-gray-900 bg-white rounded-xl border border-gray-200 focus:border-green-600 outline-none peer transition-all" placeholder=" " />
                 <label className="absolute text-xs text-gray-400 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:text-green-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-3 font-bold pointer-events-none">{label}</label>
             </div>
         );
 
-        const CartDrawer = ({ isOpen, onClose, items, onUpdateQuantity, onUpdateNote, onCheckout }) => {
-            const [info, setInfo] = useState({ name: '', phone: '', province: LOCATIONS[0].province, ward: LOCATIONS[0].wards[0], addressDetail: '', note: '' });
-            if (!isOpen) return null;
-            const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+        const AIAssistant = ({ menu }) => {
+            const [query, setQuery] = useState('');
+            const [response, setResponse] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [isOpen, setIsOpen] = useState(false);
+
+            const handleAsk = async () => {
+                if (!query.trim()) return;
+                setLoading(true);
+                try {
+                    const ai = new GoogleGenAI({ apiKey: window.process?.env?.API_KEY || '' });
+                    const menuCtx = menu.map(i => `${i.name}: ${i.description}`).join('\n');
+                    const res = await ai.models.generateContent({
+                        model: 'gemini-3-flash-preview',
+                        contents: `Thực đơn: ${menuCtx}\n\nKhách hỏi: ${query}\n\nTrả lời ngắn gọn, thân thiện bằng tiếng Việt.`,
+                        config: { systemInstruction: "Bạn là trợ lý nhà hàng An Chay." }
+                    });
+                    setResponse(res.text || "Xin lỗi, tôi không tìm thấy thông tin.");
+                } catch (e) { setResponse("Lỗi kết nối AI."); }
+                finally { setLoading(false); }
+            };
+
             return (
-                <div className="fixed inset-0 z-50 flex justify-end">
-                    <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-                    <div className="relative w-full max-w-lg bg-gray-50 h-full flex flex-col shadow-2xl animate-fade-in">
-                        <div className="p-4 bg-white border-b flex justify-between items-center sticky top-0">
-                            <h2 className="font-bold flex items-center gap-2"><i className="fa-solid fa-basket-shopping text-green-600"></i> Giỏ hàng</h2>
-                            <button onClick={onClose} className="p-2"><i className="fa-solid fa-xmark"></i></button>
+                <div className="fixed bottom-24 right-4 z-50">
+                    {isOpen && (
+                        <div className="bg-white rounded-2xl shadow-2xl border w-80 mb-4 overflow-hidden animate-fade-in">
+                            <div className="bg-green-600 p-3 text-white flex justify-between items-center"><h3 className="font-bold text-sm">Trợ lý An Chay</h3><button onClick={() => setIsOpen(false)}><i className="fa-solid fa-xmark"></i></button></div>
+                            <div className="p-3 space-y-3">
+                                <div className="text-xs text-gray-600 italic bg-gray-50 p-2 rounded-lg border">{response || "Hôm nay bạn muốn ăn gì?"}</div>
+                                <div className="flex gap-2">
+                                    <input value={query} onChange={e => setQuery(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleAsk()} placeholder="Hỏi gì đó..." className="flex-grow p-2 text-xs border rounded-lg focus:border-green-600 outline-none" />
+                                    <button onClick={handleAsk} disabled={loading} className="bg-green-600 text-white p-2 rounded-lg w-8 flex justify-center">{loading ? '...' : <i className="fa-solid fa-paper-plane"></i>}</button>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex-grow overflow-y-auto p-4 space-y-4">
-                            {items.length === 0 ? <p className="text-center text-gray-400 mt-10">Giỏ hàng trống</p> : (
-                                <>
-                                    {items.map(item => (
-                                        <div key={item.id} className="bg-white p-3 rounded-2xl flex gap-3 border">
-                                            <img src={item.image} className="w-14 h-14 rounded-xl object-cover" />
-                                            <div className="flex-grow">
-                                                <div className="flex justify-between font-bold text-sm"><span>{item.name}</span><span>{(item.price * item.quantity).toLocaleString()}₫</span></div>
-                                                <div className="flex justify-between items-center mt-2">
-                                                    <div className="flex items-center bg-gray-100 rounded-lg p-0.5"><button onClick={() => onUpdateQuantity(item.id, -1)} className="w-6 text-xs">-</button><span className="w-8 text-center text-xs font-bold">{item.quantity}</span><button onClick={() => onUpdateQuantity(item.id, 1)} className="w-6 text-xs">+</button></div>
-                                                    <select className="text-[10px] border rounded p-1" value={item.itemNote} onChange={e => onUpdateNote(item.id, e.target.value)}><option>Ghi chú món</option><option>Không hành</option><option>Cay nhiều</option><option>Ít bún</option></select>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    <div className="bg-white p-4 rounded-2xl border space-y-3">
-                                        <h3 className="text-[10px] font-bold text-gray-400 uppercase">Thông tin nhận hàng</h3>
-                                        <FloatingInput label="Tên khách hàng *" value={info.name} onChange={e => setInfo({...info, name: e.target.value.toUpperCase()})} />
-                                        <FloatingInput label="Số điện thoại *" value={info.phone} onChange={e => setInfo({...info, phone: e.target.value})} />
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <select className="p-2 border rounded-xl text-sm" value={info.province} onChange={e => setInfo({...info, province: e.target.value})} >{LOCATIONS.map(l => <option key={l.province}>{l.province}</option>)}</select>
-                                            <select className="p-2 border rounded-xl text-sm" value={info.ward} onChange={e => setInfo({...info, ward: e.target.value})} >{(LOCATIONS.find(l => l.province === info.province)?.wards || []).map(w => <option key={w}>{w}</option>)}</select>
-                                        </div>
-                                        <FloatingInput label="Địa chỉ chi tiết *" value={info.addressDetail} onChange={e => setInfo({...info, addressDetail: e.target.value})} />
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                        <div className="p-4 bg-white border-t rounded-t-3xl">
-                            <div className="flex justify-between mb-4 font-bold"><span>TỔNG TIỀN</span><span className="text-xl text-green-600">{total.toLocaleString()}₫</span></div>
-                            <button onClick={() => onCheckout(info)} className="w-full py-4 bg-green-600 text-white rounded-2xl font-bold uppercase shadow-lg shadow-green-100 active:scale-95 transition-all">Xác nhận đặt món</button>
-                        </div>
-                    </div>
+                    )}
+                    <button onClick={() => setIsOpen(!isOpen)} className="w-12 h-12 bg-green-600 text-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-all"><i className="fa-solid fa-robot"></i></button>
                 </div>
             );
         };
 
-        // --- MAIN APP ---
         const App = () => {
-            const [menu, setMenu] = useState(() => JSON.parse(localStorage.getItem('achay_menu')) || INITIAL_MENU);
-            const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('achay_orders')) || []);
-            const [settings, setSettings] = useState(() => JSON.parse(localStorage.getItem('achay_settings')) || DEFAULT_SETTINGS);
+            const [menu] = useState(INITIAL_MENU);
             const [cart, setCart] = useState([]);
-            const [isAdmin, setIsAdmin] = useState(false);
+            const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('achay_orders') || '[]'));
             const [isCartOpen, setIsCartOpen] = useState(false);
-            const [activeCategory, setActiveCategory] = useState('All');
             const [lastOrder, setLastOrder] = useState(null);
+            const [isAdmin, setIsAdmin] = useState(false);
+            const [info, setInfo] = useState({ name: '', phone: '', province: LOCATIONS[0].province, ward: LOCATIONS[0].wards[0], addressDetail: '', note: '' });
 
-            useEffect(() => localStorage.setItem('achay_menu', JSON.stringify(menu)), [menu]);
             useEffect(() => localStorage.setItem('achay_orders', JSON.stringify(orders)), [orders]);
-            useEffect(() => localStorage.setItem('achay_settings', JSON.stringify(settings)), [settings]);
 
             const addToCart = (item) => {
-                if (!settings.isOpen) return alert('Cửa hàng đang đóng cửa!');
                 setCart(prev => {
                     const ex = prev.find(i => i.id === item.id);
-                    if (ex) return prev.map(i => i.id === item.id ? {...i, quantity: i.quantity + 1} : i);
-                    return [...prev, {...item, quantity: 1, itemNote: 'Ghi chú món'}];
+                    if (ex) return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+                    return [...prev, { ...item, quantity: 1 }];
                 });
             };
 
-            const checkout = async (info) => {
-                const newOrder = { id: 'ORD-'+Math.random().toString(36).substr(2,6).toUpperCase(), ...info, fullAddress: `${info.addressDetail}, ${info.ward}, ${info.province}`, items: [...cart], total: cart.reduce((s,i) => s + i.price * i.quantity, 0), createdAt: new Date().toISOString() };
+            const updateQty = (id, d) => setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: Math.max(0, i.quantity + d) } : i).filter(i => i.quantity > 0));
+
+            const handleCheckout = async () => {
+                if (!info.name || !info.phone || !info.addressDetail) return alert("Vui lòng nhập đủ thông tin!");
+                
+                const orderId = `ORD-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+                const now = new Date();
+                const formattedDate = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')} ${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+                
+                // 1. Chuyển đổi Tp. Hồ Chí Minh -> Tp.HCM
+                const cleanProvince = info.province.replace('Tp. Hồ Chí Minh', 'Tp.HCM');
+                const fullAddr = `${info.addressDetail}, ${info.ward}, ${cleanProvince}`;
+                
+                // 2. Chi tiết món nhiều dòng
+                const details = cart.map(i => `${i.name} - ${i.quantity} - ${(i.price * i.quantity).toLocaleString('vi-VN')}₫`).join('\n');
+                
+                const totalVal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+
+                const payload = {
+                    orderId: orderId,
+                    customerName: info.name,
+                    phoneNumber: info.phone,
+                    address: fullAddr,
+                    note: info.note || "",
+                    itemDetails: details,
+                    totalPrice: totalVal.toLocaleString('vi-VN'), // Định dạng 100.000
+                    status: "Chờ xác nhận",
+                    orderDate: formattedDate
+                };
+
+                const newOrder = { id: orderId, ...info, fullAddress: fullAddr, items: [...cart], total: totalVal, createdAt: formattedDate, status: 'Chờ xác nhận' };
                 setOrders([newOrder, ...orders]);
                 setLastOrder(newOrder);
                 setCart([]);
                 setIsCartOpen(false);
-                try { await fetch(GOOGLE_SHEET_API, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newOrder) }); } catch(e){}
+
+                try {
+                    await fetch(GOOGLE_SHEET_API, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+                } catch (e) { console.error(e); }
             };
 
-            const filteredMenu = menu.filter(i => activeCategory === 'All' || i.category === activeCategory);
-            const cartTotal = cart.reduce((s,i) => s + i.price * i.quantity, 0);
-
             return (
-                <div className="min-h-screen flex flex-col pb-20 md:pb-0">
-                    <Header isAdmin={isAdmin} toggleAdmin={() => setIsAdmin(!isAdmin)} cartCount={cart.length} onOpenCart={() => setIsCartOpen(true)} settings={settings} />
-                    <main className="container mx-auto px-4 py-8 max-w-6xl">
+                <div className="min-h-screen flex flex-col">
+                    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-sm border-b px-4 h-16 flex items-center justify-between">
+                        <div className="flex items-center gap-2"><i className="fa-solid fa-leaf text-green-600 text-2xl"></i><span className="font-bold text-lg">An Chay</span></div>
+                        <div className="flex gap-4">
+                            <button onClick={() => setIsAdmin(!isAdmin)} className="text-gray-400 p-2"><i className={`fa-solid ${isAdmin ? 'fa-house' : 'fa-gear'}`}></i></button>
+                            {!isAdmin && <button onClick={() => setIsCartOpen(true)} className="relative p-2"><i className="fa-solid fa-cart-shopping text-gray-600"></i>{cart.length > 0 && <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{cart.length}</span>}</button>}
+                        </div>
+                    </header>
+
+                    <main className="container mx-auto px-4 py-6 max-w-4xl flex-grow">
                         {isAdmin ? (
-                            <div className="space-y-4"><h2 className="text-xl font-bold">Admin Panel</h2><p className="text-gray-400">Vui lòng quản lý menu và đơn hàng tại đây (Tính năng đang mở rộng)...</p><button onClick={() => setSettings({...settings, isOpen: !settings.isOpen})} className="bg-orange-500 text-white px-4 py-2 rounded-xl font-bold">Bật/Tắt Cửa Hàng</button></div>
-                        ) : (
-                            <div className="space-y-8 animate-fade-in">
-                                <div className="text-center"><h2 className="text-3xl font-bold text-green-800">Thực Đơn An Chay</h2><p className="text-gray-500 italic mt-1 text-sm">Thanh tịnh từ tâm - Trọn vẹn sức khỏe</p></div>
-                                <div className="flex gap-2 overflow-x-auto hide-scrollbar">
-                                    {['All', ...Object.values(Category)].map(c => <button key={c} onClick={() => setActiveCategory(c)} className={`px-5 py-2 rounded-full text-xs font-bold transition-all ${activeCategory === c ? 'bg-green-600 text-white shadow-lg' : 'bg-white text-gray-500 border'}`}>{c}</button>)}
+                            <div className="space-y-4 animate-fade-in">
+                                <h2 className="text-xl font-bold">Quản lý đơn hàng</h2>
+                                <div className="bg-white rounded-xl border overflow-hidden">
+                                    <table className="w-full text-xs text-left">
+                                        <thead className="bg-gray-50 border-b"><tr><th className="p-3">Mã đơn</th><th className="p-3">Khách</th><th className="p-3">Tổng</th><th className="p-3">Trạng thái</th></tr></thead>
+                                        <tbody>
+                                            {orders.map(o => (
+                                                <tr key={o.id} className="border-b">
+                                                    <td className="p-3 font-bold">{o.id}</td>
+                                                    <td className="p-3">{o.name}</td>
+                                                    <td className="p-3 font-bold text-green-600">{o.total.toLocaleString('vi-VN')}₫</td>
+                                                    <td className="p-3"><span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[10px] font-bold uppercase">{o.status}</span></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <MenuList items={filteredMenu} onAddToCart={addToCart} cart={cart} updateQuantity={(id, d) => setCart(prev => prev.map(i => i.id === id ? {...i, quantity: Math.max(0, i.quantity + d)} : i).filter(i => i.quantity > 0))} />
+                            </div>
+                        ) : (
+                            <div className="animate-fade-in">
+                                <h2 className="text-2xl font-bold text-center text-green-800 mb-6">Thực Đơn Thanh Tịnh</h2>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    {menu.map(item => (
+                                        <div key={item.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col group">
+                                            <div className="aspect-[4/3] overflow-hidden"><img src={item.image} className="w-full h-full object-cover group-hover:scale-105 transition-all" /></div>
+                                            <div className="p-3 flex-grow flex flex-col">
+                                                <h3 className="text-sm font-bold text-gray-800 mb-1">{item.name}</h3>
+                                                <p className="text-[10px] text-gray-400 line-clamp-2 mb-2 leading-tight flex-grow">{item.description}</p>
+                                                <div className="flex items-center justify-between mt-auto">
+                                                    <span className="text-green-600 font-bold text-xs">{item.price.toLocaleString('vi-VN')}₫</span>
+                                                    <button onClick={() => addToCart(item)} className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"><i className="fa-solid fa-plus"></i></button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <AIAssistant menu={menu} />
                             </div>
                         )}
                     </main>
-                    {!isAdmin && cart.length > 0 && (
-                        <div className="fixed bottom-4 left-4 right-4 z-40 md:hidden animate-fade-in">
-                            <button onClick={() => setIsCartOpen(true)} className="w-full bg-green-600 text-white p-4 rounded-2xl flex justify-between items-center shadow-2xl">
-                                <span className="bg-white/20 w-8 h-8 rounded-lg flex items-center justify-center font-bold">{cart.length}</span>
-                                <span className="font-bold">{cartTotal.toLocaleString()}₫</span>
-                                <span className="font-bold uppercase text-xs">Xem giỏ hàng <i className="fa-solid fa-chevron-right ml-1"></i></span>
-                            </button>
+
+                    {isCartOpen && (
+                        <div className="fixed inset-0 z-50 flex justify-end">
+                            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
+                            <div className="relative w-full max-w-md bg-white h-full flex flex-col shadow-2xl animate-slide-in-right">
+                                <div className="p-4 border-b flex justify-between items-center"><h2 className="font-bold flex items-center gap-2"><i className="fa-solid fa-basket-shopping text-green-600"></i> Giỏ hàng</h2><button onClick={() => setIsCartOpen(false)} className="p-2"><i className="fa-solid fa-xmark"></i></button></div>
+                                <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                                    {cart.map(item => (
+                                        <div key={item.id} className="flex gap-3 bg-gray-50 p-2 rounded-xl border">
+                                            <img src={item.image} className="w-12 h-12 rounded-lg object-cover" />
+                                            <div className="flex-grow"><div className="flex justify-between font-bold text-xs"><span>{item.name}</span><span>{(item.price * item.quantity).toLocaleString('vi-VN')}₫</span></div>
+                                            <div className="flex items-center gap-3 mt-1"><button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 border rounded">-</button><span className="text-xs font-bold">{item.quantity}</span><button onClick={() => updateQty(item.id, 1)} className="w-6 h-6 border rounded">+</button></div></div>
+                                        </div>
+                                    ))}
+                                    <div className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm">
+                                        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Thông tin giao hàng</h3>
+                                        <FloatingInput label="Tên khách hàng *" value={info.name} onChange={e => setInfo({...info, name: e.target.value.toUpperCase()})} />
+                                        <FloatingInput label="Số điện thoại *" value={info.phone} onChange={e => setInfo({...info, phone: e.target.value})} />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <select className="p-2 border rounded-xl text-xs bg-white" value={info.province} onChange={e => setInfo({...info, province: e.target.value, ward: LOCATIONS.find(l => l.province === e.target.value).wards[0]})}>{LOCATIONS.map(l => <option key={l.province}>{l.province}</option>)}</select>
+                                            <select className="p-2 border rounded-xl text-xs bg-white" value={info.ward} onChange={e => setInfo({...info, ward: e.target.value})}>{LOCATIONS.find(l => l.province === info.province).wards.map(w => <option key={w}>{w}</option>)}</select>
+                                        </div>
+                                        <FloatingInput label="Địa chỉ cụ thể *" value={info.addressDetail} onChange={e => setInfo({...info, addressDetail: e.target.value})} />
+                                        <textarea placeholder="Ghi chú (không hành, ít bún...)" value={info.note} onChange={e => setInfo({...info, note: e.target.value})} className="w-full p-3 text-xs border rounded-xl focus:border-green-600 outline-none h-20 bg-gray-50"></textarea>
+                                    </div>
+                                </div>
+                                <div className="p-4 border-t bg-white shadow-inner"><div className="flex justify-between items-center mb-4"><span className="text-xs text-gray-400 font-bold">TỔNG CỘNG</span><span className="text-xl font-bold text-green-600">{cart.reduce((s, i) => s + i.price * i.quantity, 0).toLocaleString('vi-VN')}₫</span></div><button onClick={handleCheckout} className="w-full py-3 bg-green-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg shadow-green-100 active:scale-95 transition-all">Đặt hàng ngay</button></div>
+                            </div>
                         </div>
                     )}
-                    <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cart} onUpdateQuantity={(id,d) => setCart(prev => prev.map(i => i.id === id ? {...i, quantity: Math.max(0, i.quantity+d)} : i).filter(i => i.quantity > 0))} onUpdateNote={(id,n) => setCart(prev => prev.map(i => i.id === id ? {...i, itemNote: n} : i))} onCheckout={checkout} />
-                    <SuccessModal order={lastOrder} onClose={() => setLastOrder(null)} />
+
+                    {lastOrder && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setLastOrder(null)}></div>
+                            <div className="relative bg-white w-full max-w-sm rounded-[2rem] p-6 animate-fade-in shadow-2xl text-center">
+                                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner"><i className="fa-solid fa-check text-2xl"></i></div>
+                                <h2 className="text-lg font-bold mb-1">Đặt đơn thành công!</h2>
+                                <p className="text-xs text-gray-400 mb-4">Mã đơn: {lastOrder.id}</p>
+                                <div className="bg-gray-50 p-4 rounded-2xl text-left text-xs space-y-2 mb-6 border">
+                                    <p className="flex justify-between"><span>Khách hàng:</span><b>{lastOrder.name}</b></p>
+                                    <p className="flex justify-between"><span>Địa chỉ:</span><b className="text-right ml-4">{lastOrder.fullAddress}</b></p>
+                                    <p className="flex justify-between pt-2 border-t font-bold text-green-600 uppercase"><span>Tổng tiền:</span><span>{lastOrder.total.toLocaleString('vi-VN')}₫</span></p>
+                                </div>
+                                <button onClick={() => setLastOrder(null)} className="w-full py-3 bg-green-600 text-white rounded-xl font-bold text-xs uppercase">Quay về trang chủ</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        root.render(React.createElement(App));
     </script>
 </body>
 </html>
